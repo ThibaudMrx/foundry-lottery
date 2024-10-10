@@ -9,6 +9,7 @@ import {console2} from "forge-std/Script.sol";
 import {Vm} from "forge-std/Vm.sol";
 import {VRFCoordinatorV2_5Mock} from
     "lib/chainlink-brownie-contracts/contracts/src/v0.8/vrf/mocks/VRFCoordinatorV2_5Mock.sol";
+import {LinkToken} from "test/mocks/LinkToken.sol";
 
 contract RaffleTest is Test {
     event RequestedRaffleWinner(uint256 indexed requestId);
@@ -21,12 +22,14 @@ contract RaffleTest is Test {
     uint256 entranceFee;
     uint256 interval;
     address vrfCoordinator;
+    LinkToken linkToken;
     bytes32 gasLane;
     uint32 callBackGasLimit;
     uint256 subscriptionID;
 
     address public PLAYER = makeAddr("player");
     uint256 public constant STARTING_PLAYER_BALANCE = 1000 ether;
+    uint256 public constant SUBSCIPTION_FUND_AMMOUNT = 200 ether;
 
     modifier playerEnteredRaffle() {
         vm.prank(PLAYER);
@@ -40,13 +43,24 @@ contract RaffleTest is Test {
         DeployRaffle deployRaffle = new DeployRaffle();
         (raffle, helperConfig) = deployRaffle.deployContract();
         HelperConfig.NetworkConfig memory networkConfig = helperConfig.getConfig();
+        vm.deal(PLAYER, STARTING_PLAYER_BALANCE);
+
         entranceFee = networkConfig.entranceFee;
         interval = networkConfig.interval;
         vrfCoordinator = networkConfig.vrfCoordinator;
         gasLane = networkConfig.gasLane;
         callBackGasLimit = networkConfig.callBackGasLimit;
         subscriptionID = networkConfig.subscriptionID;
-        vm.deal(PLAYER, STARTING_PLAYER_BALANCE);
+        linkToken = LinkToken(networkConfig.linkToken);
+
+        vm.startPrank(PLAYER);
+        if (block.chainid == 31337) {
+            VRFCoordinatorV2_5Mock(vrfCoordinator).fundSubscription(subscriptionID, SUBSCIPTION_FUND_AMMOUNT);
+        } else {
+            LinkToken(linkToken).transferAndCall(vrfCoordinator, SUBSCIPTION_FUND_AMMOUNT, abi.encode(subscriptionID));
+        }
+        linkToken.approve(vrfCoordinator, SUBSCIPTION_FUND_AMMOUNT);
+        vm.stopPrank();
     }
 
     function testRaffleInitialisesInOpenState() external view {
@@ -166,14 +180,14 @@ contract RaffleTest is Test {
         // Arrange
         uint256 additionalEntrants = 3;
         uint256 startingIndex = 1;
-        address payable expectedWinner = payable(address(2));
-        uint256 winnerStartingBalance = expectedWinner.balance;
+        address payable expectedWinner = payable(address(1));
 
-        for (uint256 i = startingIndex; i < additionalEntrants; i++) {
+        for (uint256 i = startingIndex; i <= additionalEntrants; i++) {
             address newPlayer = address(uint160(i));
             hoax(newPlayer, 10 ether);
             raffle.enterRaffle{value: entranceFee}();
         }
+        uint256 winnerStartingBalance = expectedWinner.balance;
         uint256 startingTimeStamp = raffle.getLastTimeStamp();
 
         // Act
@@ -193,7 +207,6 @@ contract RaffleTest is Test {
 
         assertEq(recentWinner, expectedWinner);
         assertEq(uint256(raffleState), 0);
-        console2.log("prize", prize);
         assertEq(winnerBalance, winnerStartingBalance + prize);
         assert(endingTimeStamp > startingTimeStamp);
     }
