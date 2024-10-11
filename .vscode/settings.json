@@ -1,5 +1,9 @@
 {
 	"solidity.formatter": "forge",
 	"prettier.printWidth": 400,
-	"wake.compiler.solc.remappings": ["@chainlink/contracts/=lib/chainlink-brownie-contracts/contracts/", "forge-std/=lib/forge-std/src/", "@solmate=lib/solmate/src/"]
+	"wake.compiler.solc.remappings": [
+		"@chainlink/contracts/=lib/chainlink-brownie-contracts/contracts/",
+		"forge-std/=lib/forge-std/src/",
+		"@solmate=lib/solmate/src/"
+	]
 }
