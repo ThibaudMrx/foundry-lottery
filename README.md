@@ -64,7 +64,7 @@ foundry-lottery/
 
 1. Clone the repository:
     ```sh
-    git clone https://github.com/yourusername/foundry-lottery.git
+    git clone https://github.com/thibaudmrx/foundry-lottery.git
     cd foundry-lottery
     ```
 
